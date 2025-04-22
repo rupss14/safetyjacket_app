@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:math';
+import 'package:firebase_database/firebase_database.dart';
 
 class HealthMonitor extends StatefulWidget {
   const HealthMonitor({Key? key}) : super(key: key);
@@ -11,6 +13,8 @@ class HealthMonitor extends StatefulWidget {
 
 class _HealthMonitorState extends State<HealthMonitor> {
   // Static sample data for demonstration
+  final _database = FirebaseDatabase.instance.ref();
+  String val = "";
   final Map<String, dynamic> data = {
     'heartRate': 75,
     'temperature': 36.7,
@@ -21,6 +25,31 @@ class _HealthMonitorState extends State<HealthMonitor> {
     'smoke': 'Low',
     'isAlive': true
   };
+  @override
+  void initState() {
+    super.initState();
+    _database.child("DHT11/Temperature").orderByKey()
+        .limitToLast(1)
+        .onChildAdded.listen((DatabaseEvent event) {
+      final data = event.snapshot.value;
+      setState(() {
+        val = data.toString();
+        if (kDebugMode) {
+          print(val);
+
+        }});
+    });
+    // for all data in realtime
+    // _database.child("DHT11/Temperature").onValue.listen((DatabaseEvent event) {
+    //   final data = event.snapshot.value;
+    //   setState(() {
+    //     val = data.toString();
+    //     if (kDebugMode) {
+    //       print(val);
+    //
+    //     }});
+    // });
+  }
 
   Widget _buildHeartRateChart() {
     // Generate simulated heart rate history based on current heart rate
@@ -116,7 +145,7 @@ class _HealthMonitorState extends State<HealthMonitor> {
           _buildInfoRow(
             Icons.thermostat,
             'Temperature',
-            '${data['temperature']} °C',
+            '$val °C',
             Colors.orangeAccent,
           ),
           const SizedBox(height: 12),
