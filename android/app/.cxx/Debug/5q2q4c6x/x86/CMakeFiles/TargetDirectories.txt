@@ -1,0 +1,2 @@
+D:/Sahil/project/safty_jacket/safetyjacket_app/android/app/.cxx/Debug/5q2q4c6x/x86/CMakeFiles/edit_cache.dir
+D:/Sahil/project/safty_jacket/safetyjacket_app/android/app/.cxx/Debug/5q2q4c6x/x86/CMakeFiles/rebuild_cache.dir
