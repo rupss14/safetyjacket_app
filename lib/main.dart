@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:safetyjacket_app/health_monitor_page.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:safetyjacket_app/home_screen.dart';
 import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +23,7 @@ class MyApp extends StatelessWidget {
 
         iconTheme: IconThemeData(color: Colors.white), // White icons
       ),
-      home: HealthMonitor(),
+      home: HomeScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

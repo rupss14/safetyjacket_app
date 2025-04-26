@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:math';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 
 class HealthMonitor extends StatefulWidget {
   const HealthMonitor({Key? key}) : super(key: key);
@@ -12,307 +14,256 @@ class HealthMonitor extends StatefulWidget {
 }
 
 class _HealthMonitorState extends State<HealthMonitor> {
-  // Static sample data for demonstration
-  final _database = FirebaseDatabase.instance.ref();
-  String val = "";
-  final Map<String, dynamic> data = {
-    'heartRate': 75,
-    'temperature': 36.7,
-    'location': {
-      'latitude': 22.5726,
-      'longitude': 88.3639
-    },
-    'smoke': 'Low',
-    'isAlive': true
-  };
+
+  final Color backgroundColor = Color(0xFF2C2C2E); // dark background
+  final Color cardColor = Colors.white;
+  final Color iconColor = Colors.orangeAccent;
+
+
+  final databaseRef = FirebaseDatabase.instance.ref();
+
+  String motion="Loading...";
+  String gas="Loading...";
+  String pulse="Loading...";
+  String blinking="Loading...";
+  String temperature = "Loading...";
+  String humidity = "Loading...";
+
   @override
   void initState() {
     super.initState();
-    _database.child("DHT11/Temperature").orderByKey()
-        .limitToLast(1)
-        .onChildAdded.listen((DatabaseEvent event) {
-      final data = event.snapshot.value;
-      setState(() {
-        val = data.toString();
-        if (kDebugMode) {
-          print(val);
 
-        }});
-    });
-    // for all data in realtime
-    // _database.child("DHT11/Temperature").onValue.listen((DatabaseEvent event) {
-    //   final data = event.snapshot.value;
-    //   setState(() {
-    //     val = data.toString();
-    //     if (kDebugMode) {
-    //       print(val);
-    //
-    //     }});
-    // });
-  }
-
-  Widget _buildHeartRateChart() {
-    // Generate simulated heart rate history based on current heart rate
-    final heartRate = data['heartRate'];
-    List<FlSpot> heartRateSpots = List.generate(10, (index) {
-      // Create slight variations around the current heart rate
-      final variation = Random().nextInt(20) - 10; // +/- 10 bpm
-      return FlSpot(index.toDouble(), (heartRate + variation).toDouble());
-    });
-
-    return Container(
-      height: 200,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[800],
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Heart Rate History',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(show: false),
-                titlesData: FlTitlesData(show: false),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: heartRateSpots,
-                    isCurved: true,
-                    color: Colors.redAccent,
-                    barWidth: 3,
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.redAccent.withOpacity(0.3),
-                    ),
-                  ),
-                ],
-                minX: 0,
-                maxX: 9,
-                minY: (heartRate - 30).toDouble(),
-                maxY: (heartRate + 30).toDouble(),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHealthInfoCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[800],
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildInfoRow(
-            Icons.favorite_border,
-            'Heart Rate',
-            '${data['heartRate']} bpm',
-            Colors.redAccent,
-          ),
-          const SizedBox(height: 12),
-          _buildInfoRow(
-            Icons.thermostat,
-            'Temperature',
-            '$val °C',
-            Colors.orangeAccent,
-          ),
-          const SizedBox(height: 12),
-          _buildInfoRow(
-            Icons.location_on,
-            'Location',
-            '${data['location']['latitude']}, '
-                '${data['location']['longitude']}',
-            Colors.blueAccent,
-          ),
-          const SizedBox(height: 12),
-          _buildInfoRow(
-            Icons.smoking_rooms,
-            'Smoke Status',
-            '${data['smoke']}',
-            data['smoke'] == 'High' ? Colors.redAccent : Colors.greenAccent,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value, Color color) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: color, size: 24),
+    void showTempWarning(double temp) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text("⚠️ High Temperature"),
+          content: Text("Temperature is too high: ${temp.toStringAsFixed(1)} °C"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("OK"),
+            )
+          ],
         ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      );
+    }
+
+    databaseRef.child("DHT11/data").onValue.listen((event) {
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+
+      if (data != null) {
+        double dht1Temp = double.tryParse(data['dht1_temp'].toString()) ?? 0;
+        double dht2Temp = double.tryParse(data['dht2_temp'].toString()) ?? 0;
+        double highest = dht1Temp >= dht2Temp ? dht1Temp : dht2Temp;
+
+        setState(() {
+          temperature = "$highest °C";
+        });
+
+        if (highest > 30.0) { // Customize the threshold as needed
+          showTempWarning(highest);
+        }
+      }
+    });
+
+
+    // MOTION DETECTION
+    databaseRef.child("Motion/data").onValue.listen((event) {
+      final data = event.snapshot.value as Map?;
+      if (data != null) {
+        bool motion1 = data['motion1'] ?? false;
+        bool motion2 = data['motion2'] ?? false;
+        setState(() {
+          motion = (motion1 || motion2) ? "Detected" : "Not Detected";
+        });
+      }
+    });
+
+
+    // GAS DETECTION
+    databaseRef.child("GAS/data").onValue.listen((event) {
+      final data = event.snapshot.value as Map?;
+      if (data != null) {
+        List<String> gasKeys = ['gas1', 'gas2', 'gas3', 'gas4'];
+        bool gasDetected = gasKeys.any((key) {
+          int value = int.tryParse(data[key].toString()) ?? 0;
+          return value > 600; // threshold
+        });
+        setState(() {
+          gas = gasDetected ? "Detected" : "Normal";
+        });
+      }
+    });
+
+
+    // PULSE
+    databaseRef.child("Pulse/data/pulse_bps").onValue.listen((event) {
+      final data = event.snapshot.value;
+      if (data != null) {
+        setState(() {
+          pulse = data.toString();
+        });
+      }
+    });
+
+    // BLINKING
+    databaseRef.child("BlinkStatus/data/blinking").onValue.listen((event) {
+      final data = event.snapshot.value;
+      if (data != null) {
+        setState(() {
+          blinking = data.toString();
+        });
+      }
+    });
+
+
+    // Get the latest Temperature
+    // databaseRef.child("DHT11/Temperature").onValue.listen((event) {
+    //   final data = event.snapshot.value as Map<dynamic, dynamic>?;
+    //
+    //   if (data != null && data.isNotEmpty) {
+    //     final lastValue = data.values.last;
+    //     setState(() {
+    //       temperature = lastValue.toString();
+    //     });
+    //   }
+    // });
+
+
+    // Get the latest Humidity
+    databaseRef.child("DHT11/Humidity").onValue.listen((event) {
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+
+      if (data != null && data.isNotEmpty) {
+        final lastValue = data.values.last;
+        setState(() {
+          humidity = lastValue.toString();
+        });
+      }
+    });
+  }
+  Widget infoCard(String title, String value, IconData icon) {
+    return Card(
+      color: cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: EdgeInsets.symmetric(vertical: 6, horizontal: 20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        child: Row(
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white70,
-                fontWeight: FontWeight.w500,
+            Container(
+              padding: EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orangeAccent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 30),
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600
+                ),
               ),
             ),
             Text(
               value,
               style: TextStyle(
-                fontSize: 16,
-                color: Colors.white,
+                color: Colors.green,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 
+
+
+
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text(
-          "KAVACH",
-          style: TextStyle(color:Colors.greenAccent,fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.black,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+    return  Scaffold(
+      backgroundColor: backgroundColor,
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Personal Info Card
+            SizedBox(height: 20),
+            Text(
+              "KAVACH",
+              style: TextStyle(
+                color: Colors.orangeAccent,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 20),
             Container(
-              padding: const EdgeInsets.all(20),
+              margin: EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white, // Dark card color
-                borderRadius: BorderRadius.circular(32),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 2,
-                    blurRadius: 5,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+                color: cardColor,
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 children: [
-                  const CircleAvatar(
-                    radius: 40,
-                    backgroundImage: AssetImage('assets/profile_image.jpg'),
+                  CircleAvatar(
+                    radius: 55,
+                    backgroundImage: AssetImage('assets/profile_image.jpg'), // Add your image in assets
                   ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        "Rupali Tripathy",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black, // White text
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Rupali Tripathy",
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold,color: Colors.black),
                         ),
-                      ),
-                      Text(
-                        "ID: 2111100467",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.black, // Lighter text
-                        ),
-                      ),
-                      Text(
-                        "Role: Engineer",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.black,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Text(
-                            "Site: Cast House",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.black,
-                            ),
-                          ),
-
-                          SizedBox(width: 10),
-                          Icon(
-                            Icons.check_circle,
-                            color: Colors.green, // Green color for the verified icon
-                            size: 18, // Adjust size if needed
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        Text("ID: 2111100467",style: TextStyle(color: Colors.black),),
+                        Text("Role: Engineer",style: TextStyle(color: Colors.black),),
+                        Row(
+                          children: [
+                            Text("Site: Cast House",style: TextStyle(color: Colors.black),),
+                            SizedBox(width: 4),
+                            Icon(Icons.verified, color: Colors.green, size: 18),
+                          ],
+                        )
+                      ],
+                    ),
+                  )
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 20),
 
-            // Heart Rate Chart
-            _buildHeartRateChart(),
-            const SizedBox(height: 16),
+            infoCard("Motion", "$motion", FontAwesomeIcons.personWalking),
+            infoCard("Gas", "$gas", FontAwesomeIcons.smog),
+            infoCard("Pulse", "$pulse", FontAwesomeIcons.heartbeat),
+            infoCard("Blinking", "$blinking", FontAwesomeIcons.eye),
+            infoCard("Temperature", "$temperature", FontAwesomeIcons.temperatureHigh),
+            infoCard("Humidity", "$humidity", FontAwesomeIcons.water),
 
-            // Health Info Card
-            _buildHealthInfoCard(),
+            SizedBox(height: 20,),
+
+            FloatingActionButton(
+              onPressed: () {},
+              backgroundColor: Colors.redAccent,
+              child: Icon(Icons.add_alert),
+            ),
           ],
         ),
       ),
-      // Floating Action Button
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Define the action for the button
-        },
-        backgroundColor: Colors.redAccent,
-        child: const Icon(Icons.add_alert, size: 30, color: Colors.white),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+
     );
   }
 }
