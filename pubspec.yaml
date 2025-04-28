@@ -41,6 +41,10 @@ dependencies:
   firebase_database: ^11.3.5
   font_awesome_flutter: ^10.7.0
 
+
+
+
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

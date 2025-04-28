@@ -1,8 +1,32 @@
 import 'package:flutter/material.dart';
-import 'health_monitor_page.dart'; // Import your HealthMonitor page
+import 'package:firebase_database/firebase_database.dart';
+import 'health_monitor_page.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
+
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final databaseRef = FirebaseDatabase.instance.ref();
+  String sosStatus = "no"; // default value
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Listen to SOS status
+    databaseRef.child("SOS/data/sos_button").onValue.listen((event) {
+      final data = event.snapshot.value;
+      if (data != null) {
+        setState(() {
+          sosStatus = data.toString().toLowerCase();
+        });
+      }
+    });
+  }
 
   void navigateToHealthMonitor(BuildContext context) {
     Navigator.push(
@@ -19,42 +43,44 @@ class HomeScreen extends StatelessWidget {
         title: Text(
           "KAVACH",
           style: TextStyle(
-            fontWeight: FontWeight.bold, // Make text bold
+            fontWeight: FontWeight.bold,
             fontSize: 22,
           ),
         ),
-        centerTitle: true, // Center the title
+        centerTitle: true,
         backgroundColor: Colors.orangeAccent,
         foregroundColor: Colors.black,
       ),
       body: ListView(
         padding: EdgeInsets.all(16),
         children: [
-          employeeTile(context, "Employee 1"),
-          employeeTile(context, "Employee 2"),
-          employeeTile(context, "Employee 3"),
-          employeeTile(context, "Employee 4"),
+          employeeTile(context, "Employee 1", sosStatus == "yes"),
+          employeeTile(context, "Employee 2", false),
+          employeeTile(context, "Employee 3", false),
+          employeeTile(context, "Employee 4", false),
         ],
       ),
     );
   }
 
-  Widget employeeTile(BuildContext context, String employeeName) {
+  Widget employeeTile(BuildContext context, String employeeName, bool danger) {
     return GestureDetector(
       onTap: () {
         if (employeeName == "Employee 1") {
           navigateToHealthMonitor(context);
         }
-        // Add navigation for other employees if needed
       },
       child: Card(
-        color: Colors.white,
+        color: danger ? Colors.red : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         margin: EdgeInsets.symmetric(vertical: 10),
         child: ListTile(
           leading: CircleAvatar(
-            backgroundColor: Colors.orangeAccent,
-            child: Icon(Icons.person, color: Colors.white),
+            backgroundColor: danger ? Colors.black : Colors.orangeAccent,
+            child: Icon(
+              danger ? Icons.warning : Icons.person,
+              color: Colors.white,
+            ),
           ),
           title: Text(
             employeeName,
